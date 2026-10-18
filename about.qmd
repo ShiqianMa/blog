@@ -1,0 +1,29 @@
+---
+title: "About"
+image: Shiqian_Ma.jpg
+about:
+  template: jolla
+  links:
+    - icon: linkedin
+      text: LinkedIn
+      href: https://www.linkedin.com/in/shiqian-ma-bb3a6157/
+    - icon: x
+      text: X
+      href: https://x.com/ShiqianMa 
+
+---
+
+---
+title: "About"
+---
+
+I am Shiqian Ma, a professor in the Data Science and AI Institute, Department of Applied Mathematics and Statistics, Department of Computer Science, and Department of Electrical and Computer Engineering, 
+at Johns Hopkins University.
+
+My research focuses on mathematical foundations of AI, foundation models, AI4Math, optimization and machine learning. 
+
+In this blog, I share research notes, explanations of mathematical
+ideas, and thoughts on optimization, machine learning, and AI for
+mathematical discovery.
+
+[Visit my academic homepage](https://shiqianma.github.io/)

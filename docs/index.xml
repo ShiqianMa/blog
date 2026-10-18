@@ -1,0 +1,458 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss  xmlns:atom="http://www.w3.org/2005/Atom" 
+      xmlns:media="http://search.yahoo.com/mrss/" 
+      xmlns:content="http://purl.org/rss/1.0/modules/content/" 
+      xmlns:dc="http://purl.org/dc/elements/1.1/" 
+      version="2.0">
+<channel>
+<title>Shiqian Ma&#39;s Blog</title>
+<link>https://shiqianma.github.io/blog/</link>
+<atom:link href="https://shiqianma.github.io/blog/index.xml" rel="self" type="application/rss+xml"/>
+<description>Research notes on optimization, machine learning, and AI.</description>
+<generator>quarto-1.10.18</generator>
+<lastBuildDate>Sun, 18 Oct 2026 04:00:00 GMT</lastBuildDate>
+<item>
+  <title>Manifold Muon: Normalize the Momentum and Weights</title>
+  <dc:creator>Shiqian Ma</dc:creator>
+  <link>https://shiqianma.github.io/blog/posts/manifold-muon/</link>
+  <description><![CDATA[ 
+
+
+
+
+
+<p>LLM training is essentially a nonconvex minimization problem. In classical optimization, we do line search to make sure gradient descent method converges. In LLM training, line search is prohibitive. Therefore, there is no way to guarantee the convergence. For this reason, researchers have developed many heuristics to stabilize the training dynamics in the hope that the training will not diverge. These heuristics include normalization layers, weight decay, gradient clipping, and careful learning-rate schedules (e.g., warmup).</p>
+<p>Muon achieves this goal by normalizing the momentum so that the update is always controlled. More specifically, Muon updates the weight matrix <img src="https://latex.codecogs.com/png.latex?W"> by <img src="https://latex.codecogs.com/png.latex?%0AW_%7Bt+1%7D%20=%20W_t%20-%20%5Ceta_t%20%5Coperatorname%7Bmsign%7D(M_t),%0A"> where <img src="https://latex.codecogs.com/png.latex?M_t"> is the momentum and <img src="https://latex.codecogs.com/png.latex?%5Coperatorname%7Bmsign%7D"> is the matrix sign operator, which normalizes all singular values of the momentum to 1.</p>
+<p>The success of Muon suggests that normalizing the update is a good way to stabilize the training. This motivates to ask a natural question: <strong>what if we also normalize the weights?</strong></p>
+<p>That is the starting point of our paper, <a href="https://arxiv.org/abs/2605.04418v2"><em>Demystifying Manifold Constraints in LLM Pre-training</em></a>. We study what happens when LLM training explicitly constrains weight matrices to manifolds. Our algorithm, <strong>MACRO</strong>, essentially a Riemannian spectral gradient descent method, solves the manifold-constrained LLM training with rigorous convergence guarantees.</p>
+<section id="muon-normalizing-the-momentum" class="level2">
+<h2 class="anchored" data-anchor-id="muon-normalizing-the-momentum">Muon: normalizing the momentum</h2>
+<p>A neural-network linear layer maps an input vector <img src="https://latex.codecogs.com/png.latex?x"> to <img src="https://latex.codecogs.com/png.latex?Wx">, with</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AW%5Cin%5Cmathbb%20R%5E%7Bd_%7B%5Cmathrm%7Bout%7D%7D%5Ctimes%20d_%7B%5Cmathrm%7Bin%7D%7D%7D.%0A"></p>
+<p>Treating the weights as a matrix leads to matrix-aware optimizers, including Shampoo, SOAP, ASGO, and Muon.</p>
+<p>In a simplified form of Muon, the stochastic gradient and momentum are</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AG_t=%5Cnabla_W%5Cell(W_t,%5Cxi_t),%0A%5Cqquad%0AM_t=%5Cbeta%20M_%7Bt-1%7D+(1-%5Cbeta)G_t.%0A"></p>
+<p>Rather than using <img src="https://latex.codecogs.com/png.latex?M_t"> directly, Muon updates the weights using the matrix sign of <img src="https://latex.codecogs.com/png.latex?M_t">:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AO_t=%5Coperatorname%7Bmsign%7D(M_t),%0A%5Cqquad%0AW_%7Bt+1%7D=W_t-%5Ceta_t%20O_t.%0A"></p>
+</section>
+<section id="manifold-muon-normalizing-the-momentum-and-the-weights" class="level2">
+<h2 class="anchored" data-anchor-id="manifold-muon-normalizing-the-momentum-and-the-weights">Manifold Muon: normalizing the momentum and the weights</h2>
+<p>Early contributors of Manifold Muon are Jeremy Bernstein <sup>1</sup>, Jianlin Su <sup>2</sup>, and Franz Louis Cesista <sup>3</sup>. It suggests normalizing the weights in addition to the momentum. Since weights are the decision variables of the optimization problem, normalizing them requires imposing constraints on them. This changes the original unconstrained optimization problem into a constrained one, in fact, a Riemannian optimization problem:</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cmin_%7BW%5Cin%5Cmathcal%20M%7D%5Cmathcal%20L(W),%0A"> where <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%20M"> is a manifold.</p>
+<p>There are two questions: which manifold to use and how to solve the manifold-constrained optimization problem?</p>
+<p>Our <strong>MACRO</strong> algorithm, a Riemannian spectral gradient descent method (Riemannian Muon), provides an algorithmic framework for solving this problem. The main updates of MACRO are: <img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Baligned%7D%0AG_t%20&amp;=%20%5Cnabla_W%5Cell(W_t,%5Cxi_t),%5C%5C%0AM_t%20&amp;=%20%5Cbeta%20M_%7Bt-1%7D+(1-%5Cbeta)G_t,%5C%5C%0A%5CPhi_t%20&amp;=%20%5Coperatorname%7Bproj%7D_%7BT_%7BW_t%7D%5Cmathcal%20M%7D(M_t),%5C%5C%0AO_t%20&amp;=%20%5Coperatorname%7Bmsign%7D(%5CPhi_t),%5C%5C%0AD_t%20&amp;=%20R%5C,%5Cfrac%7BO_t%7D%7B%5C%7CO_t%5C%7C_%7B%5Cmathcal%20M%7D+%5Cepsilon%7D,%5C%5C%0AW_%7Bt+1%7D%20&amp;=%20%5Cmathcal%20P_%7B%5Cmathcal%20M%7D(W_t-%5Ceta_tD_t).%0A%5Cend%7Baligned%7D%0A"> Here <img src="https://latex.codecogs.com/png.latex?%5Coperatorname%7Bproj%7D_%7BT_%7BW_t%7D%5Cmathcal%20M%7D"> is the projection onto the tangent space, and <img src="https://latex.codecogs.com/png.latex?%5Cmathcal%20P_%7B%5Cmathcal%20M%7D"> serves the purpose of retraction. They are standard operations in Riemannian optimization. MACRO has the following convergence rate guarantee under standard assumptions: <img src="https://latex.codecogs.com/png.latex?%0A%5Cmin_%7Bt=0,%5Cldots,T-1%7D%5Cmathbb%7BE%7D%5C%7C%5Cnabla_%5Cmathcal%7BM%7D%5Cmathcal%7BL%7D(W_t)%5C%7C_*%20%5Cleq%20%5Cmathcal%7BO%7D(T%5E%7B-1/4%7D),%0A"> which matches the rate for general nonconvex smooth stochastic optimization.</p>
+<p>Since Muon essentially projects the momentum on to Stiefel manifold, one would think that it is natural to impose Stiefel manifold to the weights. However, manifold Muon with Stiefel manifold doesn’t scale well. Two natural alternatives are Frobenius norm sphere and Spectral norm sphere (although technically spectral norm sphere is not a manifold):</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cmathcal%20M_F(R)=%5C%7BW:%5C%7CW%5C%7C_F=R%5C%7D,%20%5Cquad%20%5Cmathcal%20M_S(R)=%5C%7BW:%5C%7CW%5C%7C_2=R%5C%7D.%0A"></p>
+<p>Existing works such as Spectral Sphere Optimization (SSO) <sup>4</sup> uses spectral sphere, while MuonH <sup>5</sup> adopts Frobenius sphere.</p>
+</section>
+<section id="spectral-and-frobenius-constraints-need-different-radii" class="level2">
+<h2 class="anchored" data-anchor-id="spectral-and-frobenius-constraints-need-different-radii">Spectral and Frobenius constraints need different radii</h2>
+<p>Choosing the norm is only half the specification. <strong>What radius should we use?</strong></p>
+<p>Consider a sequence of <img src="https://latex.codecogs.com/png.latex?s"> input vectors collected in <img src="https://latex.codecogs.com/png.latex?X%5Cin%5Cmathbb%20R%5E%7Bs%5Ctimes%20d_%7B%5Cmathrm%7Bin%7D%7D%7D">, with</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AY=XW%5E%5Ctop.%0A"></p>
+<p>Define the input and output root-mean-square scales by</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Coperatorname%7BRMS%7D(X)=%5Cfrac%7B%5C%7CX%5C%7C_F%7D%7B%5Csqrt%7Bs%5C,d_%7B%5Cmathrm%7Bin%7D%7D%7D%7D,%0A%5Cqquad%0A%5Coperatorname%7BRMS%7D(Y)=%5Cfrac%7B%5C%7CY%5C%7C_F%7D%7B%5Csqrt%7Bs%5C,d_%7B%5Cmathrm%7Bout%7D%7D%7D%7D.%0A"></p>
+<p>We want to choose a radius such that the RMS norm is preserved from <img src="https://latex.codecogs.com/png.latex?X"> to <img src="https://latex.codecogs.com/png.latex?Y">.</p>
+<section id="spectral-sphere-controls-the-worst-case-scale" class="level3">
+<h3 class="anchored" data-anchor-id="spectral-sphere-controls-the-worst-case-scale">Spectral sphere controls the worst-case scale</h3>
+<p>The operator-norm bound gives</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Coperatorname%7BRMS%7D(Y)%0A%5Cleq%0A%5Csqrt%7B%5Cfrac%7Bd_%7B%5Cmathrm%7Bin%7D%7D%7D%7Bd_%7B%5Cmathrm%7Bout%7D%7D%7D%7D%0A%5C%7CW%5C%7C_2%5Coperatorname%7BRMS%7D(X).%0A"></p>
+<p>Thus, with</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AR_%7B%5Cmathrm%7Bspec%7D%7D=r%5Csqrt%7B%5Cfrac%7Bd_%7B%5Cmathrm%7Bout%7D%7D%7D%7Bd_%7B%5Cmathrm%7Bin%7D%7D%7D%7D,%0A"></p>
+<p>we obtain <img src="https://latex.codecogs.com/png.latex?%5Coperatorname%7BRMS%7D(Y)%5Cleq%20r%5Coperatorname%7BRMS%7D(X)">. This bound holds for arbitrary input directions: it controls the largest possible amplification.</p>
+</section>
+<section id="frobenius-sphere-controls-an-average-case-scale" class="level3">
+<h3 class="anchored" data-anchor-id="frobenius-sphere-controls-an-average-case-scale">Frobenius sphere controls an average-case scale</h3>
+<p>Using the Frobenius norm in that same worst-case inequality gives a much looser bound. A better way is to examine an isotropic-input calculation at initialization. For a fixed layer weight and input vectors satisfying <img src="https://latex.codecogs.com/png.latex?%5Cmathbb%20E%5Bx_i%20x_i%5E%5Ctop%5D=%5Csigma_x%5E2I">, a direct expansion gives</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cmathbb%20E%5C%7CXW%5E%5Ctop%5C%7C_F%5E2%0A=s%5Csigma_x%5E2%5C%7CW%5C%7C_F%5E2.%0A"></p>
+<p>Consequently,</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cleft(%5Cmathbb%20E%5B%5Coperatorname%7BRMS%7D(Y)%5E2%5D%5Cright)%5E%7B1/2%7D%0A=%0A%5Cfrac%7B%5Csigma_x%7D%7B%5Csqrt%7Bd_%7B%5Cmathrm%7Bout%7D%7D%7D%7D%5C%7CW%5C%7C_F.%0A"></p>
+<p>This motivates</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AR_%7B%5Cmathrm%7Bfro%7D%7D=r%5Csqrt%7Bd_%7B%5Cmathrm%7Bout%7D%7D%7D.%0A"></p>
+<p>The practical choices are therefore</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Constraint</th>
+<th style="text-align: left;">Radius</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Spectral sphere</td>
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?r%5Csqrt%7Bd_%7B%5Cmathrm%7Bout%7D%7D/d_%7B%5Cmathrm%7Bin%7D%7D%7D"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Frobenius sphere</td>
+<td style="text-align: left;"><img src="https://latex.codecogs.com/png.latex?r%5Csqrt%7Bd_%7B%5Cmathrm%7Bout%7D%7D%7D"></td>
+</tr>
+</tbody>
+</table>
+<p>The multiplier <img src="https://latex.codecogs.com/png.latex?r"> is a tunable scalar. Our numerical experiments show that MACRO is not sensitive to the choice of <img src="https://latex.codecogs.com/png.latex?r">.</p>
+</section>
+</section>
+<section id="manifold-constraint-functionally-overlaps-with-rmsnorm" class="level2">
+<h2 class="anchored" data-anchor-id="manifold-constraint-functionally-overlaps-with-rmsnorm">Manifold constraint functionally overlaps with RMSNorm</h2>
+<p>Normalization layers already control activation scale. For example, RMSNorm takes the form</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Coperatorname%7BRMSNorm%7D_%7B%5Cgamma%7D(x)%0A=%0A%5Cgamma%5Codot%5Cfrac%7Bx%7D%7B%5Coperatorname%7BRMS%7D(x)%7D,%0A"></p>
+<p>where <img src="https://latex.codecogs.com/png.latex?%5Cgamma"> is a learned scale vector. The manifold constraints also have regulation effects on activation scale through the control of weights norm. The two mechanisms may have some functional overlap.</p>
+<p>That is what we observed: increasing the prescribed constraint radius is accompanied by a decrease in the learned norm of <img src="https://latex.codecogs.com/png.latex?%5Cgamma">. The figure below illustrates this relationship.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://shiqianma.github.io/blog/posts/manifold-muon/images/rmsnorm-radius.png" class="img-fluid figure-img" style="width:75.0%" alt="Plot of the norm of the learned RMSNorm scale vector during training for several radius settings. Larger radii correspond to smaller learned scale-vector norms."></p>
+<figcaption>Larger constraint radius <img src="https://latex.codecogs.com/png.latex?R"> results in smaller learned RMSNorm scale-vector <img src="https://latex.codecogs.com/png.latex?%5Cgamma">. Solid and dashed curves distinguish the two constraint geometries.</figcaption>
+</figure>
+</div>
+<p>This suggests <strong>functional overlap</strong>. In the standard architecture, learnable normalization can buffer changes in weight scale.</p>
+<p>We also ask what happens after removing standard learnable pre-RMSNorm layers. This experiment retains targeted parameter-free normalizations after embedding and attention, QK normalization, and Norm-Gated SwiGLU. For a 330M QWen-like model, our results are:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Optimizer</th>
+<th style="text-align: right;">Validation loss at LR <img src="https://latex.codecogs.com/png.latex?0.01"></th>
+<th style="text-align: right;">Validation loss at LR <img src="https://latex.codecogs.com/png.latex?0.03"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Muon</td>
+<td style="text-align: right;">2.813</td>
+<td style="text-align: right;">NaN</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">MACRO-fro</td>
+<td style="text-align: right;">2.758</td>
+<td style="text-align: right;">2.781</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">MACRO-spec</td>
+<td style="text-align: right;">2.739</td>
+<td style="text-align: right;">2.819</td>
+</tr>
+</tbody>
+</table>
+<p>Both MACRO variants remain stable at the largest tested learning rate, while Muon fails when LR=<img src="https://latex.codecogs.com/png.latex?0.03">. The conclusion is: explicit manifold constraints can take over part of the stabilization role of learnable normalization, within this particular architecture.</p>
+</section>
+<section id="weight-decay-is-not-needed-in-manifold-muon" class="level2">
+<h2 class="anchored" data-anchor-id="weight-decay-is-not-needed-in-manifold-muon">Weight decay is not needed in manifold Muon</h2>
+<section id="what-weight-decay-is-doing-geometrically" class="level3">
+<h3 class="anchored" data-anchor-id="what-weight-decay-is-doing-geometrically">What weight decay is doing geometrically</h3>
+<p>Consider the decoupled weight-decay update</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0AW_%7Bt+1%7D=(1-%5Ceta_t%5Clambda)W_t-%5Ceta_tD_t.%0A"></p>
+<p>When decay-induced shrinkage offsets the norm growth caused by optimization updates, the weight norm can settle around an approximately stable level. Learning continues, but the motion increasingly resembles a <strong>rotation</strong>: the direction of the weights changes while their overall size remains approximately constant. This is the so-called <em>rotational equilibrium</em>.</p>
+<p>However, to achieve this effect, the optimizer must evolve toward an equilibrium, potentially through a long transient in which weight norms and angular updates are still changing. Choosing a decay coefficient does not prescribe the weight norm or the rotation angle at every iteration.</p>
+<p><strong>Rather than waiting for this balance to emerge, can we impose the desired geometry from the first step?</strong></p>
+</section>
+<section id="macro-fixes-the-scale-directly" class="level3">
+<h3 class="anchored" data-anchor-id="macro-fixes-the-scale-directly">MACRO fixes the scale directly</h3>
+<p>The Frobenius sphere gives the clearest illustration. MACRO-fro enforces</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5C%7CW_t%5C%7C_F=R%0A"></p>
+<p>throughout training. Let <img src="https://latex.codecogs.com/png.latex?O_t"> be MACRO’s matrix-sign direction, computed from the tangent-projected momentum. Omitting the numerical stabilizer and assuming a nonzero direction, its normalized step is</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cbegin%7Baligned%7D%0A%5Cwidetilde%7B%5Cnabla%7D_t&amp;=R%5Cfrac%7BO_t%7D%7B%5C%7CO_t%5C%7C_F%7D,%5C%5C%0AZ_t&amp;=W_t-%5Ceta_t%5Cwidetilde%7B%5Cnabla%7D_t,%5C%5C%0AW_%7Bt+1%7D&amp;=R%5Cfrac%7BZ_t%7D%7B%5C%7CZ_t%5C%7C_F%7D.%0A%5Cend%7Baligned%7D%0A"></p>
+<p>Both the weight and the normalized direction have Frobenius norm <img src="https://latex.codecogs.com/png.latex?R">. Therefore,</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cboxed%7B%0A%5Cfrac%7B%5C%7C%5Ceta_t%5Cwidetilde%7B%5Cnabla%7D_t%5C%7C_F%7D%7B%5C%7CW_t%5C%7C_F%7D%0A=%5Ceta_t.%0A%7D%0A"></p>
+<p>The learning-rate schedule now directly controls the <strong>proposed update-to-weight ratio</strong>, without depending on a weight norm that drifts during training.</p>
+<p>There is no need for an additional shrinkage term to maintain the prescribed weight scale: the normalization already does that at every iteration.</p>
+</section>
+<section id="from-fixed-weight-norms-to-controlled-rotation" class="level3">
+<h3 class="anchored" data-anchor-id="from-fixed-weight-norms-to-controlled-rotation">From fixed weight norms to controlled rotation</h3>
+<p>Because consecutive weights have the same Frobenius norm, their movement can be described by the angle</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctheta_t=%0A%5Carccos%5C!%5Cleft(%0A%5Cfrac%7B%5Clangle%20W_%7Bt+1%7D,W_t%5Crangle_F%7D%7BR%5E2%7D%0A%5Cright).%0A"></p>
+<p>Here we regard each weight matrix as a vector of its entries. This is a global angle between two matrices, not a claim that every singular direction rotates by the same amount.</p>
+<p>Our analysis makes this angle explicit. Define</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Calpha_t=%0A%5Cfrac%7B%5Clangle%20W_t,O_t%5Crangle_F%7D%0A%7BR%5C%7CO_t%5C%7C_F%7D.%0A"></p>
+<p>The normalized update gives the exact identity</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Cboxed%7B%0A%5Ccos%5Ctheta_t=%0A%5Cfrac%7B1-%5Ceta_t%5Calpha_t%7D%0A%7B%5Csqrt%7B1-2%5Ceta_t%5Calpha_t+%5Ceta_t%5E2%7D%7D.%0A%7D%0A"></p>
+<p>For small steps,</p>
+<p><img src="https://latex.codecogs.com/png.latex?%0A%5Ctheta_t%5Capprox%5Ceta_t%5Csqrt%7B1-%5Calpha_t%5E2%7D.%0A"></p>
+<p>When the update direction is nearly tangent, <img src="https://latex.codecogs.com/png.latex?%5Calpha_t%5Capprox0">, this becomes <strong><img src="https://latex.codecogs.com/png.latex?%5Ctheta_t%5Capprox%5Ceta_t"></strong>.</p>
+</section>
+<section id="do-we-still-need-weight-decay-in-practice" class="level3">
+<h3 class="anchored" data-anchor-id="do-we-still-need-weight-decay-in-practice">Do we still need weight decay in practice?</h3>
+<p>We test this directly on a <strong>330M Qwen3-like model</strong>, comparing weight-decay coefficients <img src="https://latex.codecogs.com/png.latex?%5Clambda=0"> and <img src="https://latex.codecogs.com/png.latex?%5Clambda=0.1"> while keeping the other settings fixed at each learning rate.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Optimizer</th>
+<th style="text-align: right;">Weight decay</th>
+<th style="text-align: right;">LR 0.007</th>
+<th style="text-align: right;">LR 0.01</th>
+<th style="text-align: right;">LR 0.03</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">MACRO-fro</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2.742</td>
+<td style="text-align: right;">2.730</td>
+<td style="text-align: right;">2.718</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">MACRO-fro</td>
+<td style="text-align: right;">0.1</td>
+<td style="text-align: right;">2.742</td>
+<td style="text-align: right;">2.729</td>
+<td style="text-align: right;">2.718</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">MACRO-spec</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2.728</td>
+<td style="text-align: right;">2.715</td>
+<td style="text-align: right;">2.783</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">MACRO-spec</td>
+<td style="text-align: right;">0.1</td>
+<td style="text-align: right;">2.727</td>
+<td style="text-align: right;">2.715</td>
+<td style="text-align: right;">2.783</td>
+</tr>
+</tbody>
+</table>
+<p><em>Validation loss; lower is better. These are the separate 330M weight-decay ablation results.</em></p>
+<p>The differences are at most <strong>0.001</strong>. So, adding weight decay provides essentially no additional benefit.</p>
+</section>
+</section>
+<section id="low-precision-training" class="level2">
+<h2 class="anchored" data-anchor-id="low-precision-training">Low-precision training</h2>
+<p>The following table reports final validation perplexities:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Model</th>
+<th style="text-align: left;">Optimizer</th>
+<th style="text-align: right;">FP32 configuration</th>
+<th style="text-align: right;">BF16 configuration</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">240M</td>
+<td style="text-align: left;">Muon</td>
+<td style="text-align: right;">20.593</td>
+<td style="text-align: right;">64.845</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">240M</td>
+<td style="text-align: left;">MACRO-fro</td>
+<td style="text-align: right;">20.494</td>
+<td style="text-align: right;">20.748</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">240M</td>
+<td style="text-align: left;">MACRO-spec</td>
+<td style="text-align: right;">20.732</td>
+<td style="text-align: right;">21.324</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">600M</td>
+<td style="text-align: left;">Muon</td>
+<td style="text-align: right;">15.349</td>
+<td style="text-align: right;">39.269</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">600M</td>
+<td style="text-align: left;">MACRO-fro</td>
+<td style="text-align: right;">15.296</td>
+<td style="text-align: right;">15.665</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">600M</td>
+<td style="text-align: left;">MACRO-spec</td>
+<td style="text-align: right;">15.310</td>
+<td style="text-align: right;">16.056</td>
+</tr>
+</tbody>
+</table>
+<p>The contrast is substantial: MACRO incurs far less degradation in these reduced-precision settings.</p>
+</section>
+<section id="what-happens-in-standard-pretraining" class="level2">
+<h2 class="anchored" data-anchor-id="what-happens-in-standard-pretraining">What happens in standard pretraining?</h2>
+<p>The main experiments use Qwen3-like decoder-only Transformers, with grouped-query attention, rotary position embeddings, SwiGLU, and pre-RMSNorm. <strong>“Qwen3-like” describes the architecture.</strong> These models are trained from scratch.</p>
+<p>The sequence length is 2,048, and the global batch size is 512. The validation-perplexity is reported in the table below.</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Optimizer</th>
+<th style="text-align: right;">240M</th>
+<th style="text-align: right;">600M</th>
+<th style="text-align: right;">1.2B</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Muon</td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?20.72%5Cpm0.010"></td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?15.37%5Cpm0.006"></td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?12.99%5Cpm0.004"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">MuonH-fro</td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?20.55%5Cpm0.007"></td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?15.23%5Cpm0.006"></td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?12.92%5Cpm0.005"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">MuonH-spec</td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?20.63%5Cpm0.014"></td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?15.33%5Cpm0.006"></td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?12.88%5Cpm0.006"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">SSO</td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?20.59%5Cpm0.021"></td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?15.32%5Cpm0.007"></td>
+<td style="text-align: right;">—</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">MACRO-fro</td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?20.58%5Cpm0.011"></td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?15.29%5Cpm0.002"></td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?12.85%5Cpm0.006"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">MACRO-spec</td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?20.50%5Cpm0.011"></td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?15.30%5Cpm0.005"></td>
+<td style="text-align: right;"><img src="https://latex.codecogs.com/png.latex?12.90%5Cpm0.009"></td>
+</tr>
+</tbody>
+</table>
+<p>Both MACRO variants improve on the reported Muon baseline at each scale. The differences between spectral and Frobenius constraints are modest, and MACRO is competitive with MuonH.</p>
+</section>
+<section id="we-no-longer-need-learning-rate-warmup" class="level2">
+<h2 class="anchored" data-anchor-id="we-no-longer-need-learning-rate-warmup">We no longer need learning-rate warmup</h2>
+<p><strong>Learning-rate warmup</strong> starts training with a small learning rate and gradually increases it to the target level. Results in the following table show that the learning rate warmup is no longer needed when we use MACRO.</p>
+<p><strong>240M model</strong></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Warmup ratio</th>
+<th style="text-align: right;">Muon</th>
+<th style="text-align: right;">MACRO-fro</th>
+<th style="text-align: right;">MACRO-spec</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">0%</td>
+<td style="text-align: right;">20.868</td>
+<td style="text-align: right;"><strong>20.543</strong></td>
+<td style="text-align: right;"><strong>20.559</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">5%</td>
+<td style="text-align: right;"><strong>20.650</strong></td>
+<td style="text-align: right;">20.560</td>
+<td style="text-align: right;">20.632</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">10%</td>
+<td style="text-align: right;">20.679</td>
+<td style="text-align: right;">20.604</td>
+<td style="text-align: right;">20.700</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">15%</td>
+<td style="text-align: right;">20.712</td>
+<td style="text-align: right;">20.674</td>
+<td style="text-align: right;">20.752</td>
+</tr>
+</tbody>
+</table>
+<p><strong>600M model</strong></p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: left;">Warmup ratio</th>
+<th style="text-align: right;">Muon</th>
+<th style="text-align: right;">MACRO-fro</th>
+<th style="text-align: right;">MACRO-spec</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">0%</td>
+<td style="text-align: right;">15.312</td>
+<td style="text-align: right;"><strong>15.227</strong></td>
+<td style="text-align: right;"><strong>15.216</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">5%</td>
+<td style="text-align: right;"><strong>15.309</strong></td>
+<td style="text-align: right;">15.252</td>
+<td style="text-align: right;">15.253</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">15%</td>
+<td style="text-align: right;">15.402</td>
+<td style="text-align: right;">15.340</td>
+<td style="text-align: right;">15.354</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Both MACRO variants perform best without warmup at both model sizes.</strong> Muon achieves its best performance when 5% training steps are used for learning rate warmup.</p>
+</section>
+<section id="conclusion" class="level2">
+<h2 class="anchored" data-anchor-id="conclusion">Conclusion</h2>
+<p>Manifold constraints help improve significantly the training stability. When using manifold constraints, weight decay is no longer needed, so one less hypterparameter to tune in practice. Moreover, learning rate warmup is not needed either. Our manifold Muon algorithm, MACRO, is very robust to low-precision training.</p>
+</section>
+<section id="paper-and-codes" class="level2">
+<h2 class="anchored" data-anchor-id="paper-and-codes">Paper and codes</h2>
+<p>Kang An, Jiaxiang Li, Donald Goldfarb, and Shiqian Ma. <strong>Demystifying Manifold Constraints in LLM Pre-training.</strong> arXiv:2605.04418, 2026. <a href="https://arxiv.org/abs/2605.04418v2">Paper</a>.</p>
+<p>Our codes are available at <a href="https://github.com/ErstinAn/titanprecond">titanprecond</a>.</p>
+</section>
+<section id="cite-this-paper" class="level2">
+<h2 class="anchored" data-anchor-id="cite-this-paper">Cite this paper</h2>
+<p>To cite this work, please use the following BibTeX entry:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bibtex code-with-copy"><code class="sourceCode bibtex"><span id="cb1-1"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">@misc</span>{<span class="ot" style="color: #003B4F;
+background-color: null;
+font-style: inherit;">an2026demystifying</span>,</span>
+<span id="cb1-2">  <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">title</span>         = {Demystifying Manifold Constraints in {LLM} Pre-training},</span>
+<span id="cb1-3">  <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">author</span>        = {An, Kang and Li, Jiaxiang and Goldfarb, Donald and Ma, Shiqian},</span>
+<span id="cb1-4">  <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">year</span>          = {2026},</span>
+<span id="cb1-5">  <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">archivePrefix</span> = {arXiv},</span>
+<span id="cb1-6">  <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">url</span>           = {https://arxiv.org/abs/2605.04418}</span>
+<span id="cb1-7">}</span></code></pre></div></div>
+
+
+</section>
+
+
+<div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p><a href="https://thinkingmachines.ai/blog/modular-manifolds/">Jeremy Berstein’s blog</a>↩︎</p></li>
+<li id="fn2"><p><a href="https://kexue.fm/archives/11221">Jianlin Su’s blog</a>↩︎</p></li>
+<li id="fn3"><p><a href="https://leloykun.github.io/ponder/steepest-descent-stiefel/">Franz Louis Cesista’s blog</a>↩︎</p></li>
+<li id="fn4"><p><a href="https://arxiv.org/abs/2601.08393">SSO</a>↩︎</p></li>
+<li id="fn5"><p><a href="https://psychedelic-sunstone-851.notion.site/Fantastic-Pretraining-Optimizers-and-Where-to-Find-Them-2-1-Hyperball-Optimization-2e924306e6f280e7a5ffee00eb40a0dd">MuonH</a>↩︎</p></li>
+</ol>
+</section></div> ]]></description>
+  <category>Optimization</category>
+  <category>Large Language Models</category>
+  <category>Research Notes</category>
+  <guid>https://shiqianma.github.io/blog/posts/manifold-muon/</guid>
+  <pubDate>Sun, 18 Oct 2026 04:00:00 GMT</pubDate>
+</item>
+</channel>
+</rss>
