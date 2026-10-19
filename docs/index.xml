@@ -14,7 +14,7 @@
 <item>
   <title>Manifold Muon: Normalize the Momentum and Weights</title>
   <dc:creator>Shiqian Ma</dc:creator>
-  <link>https://shiqianma.github.io/blog/posts/manifold-muon/</link>
+  <link>https://shiqianma.github.io/blog/manifold-muon/</link>
   <description><![CDATA[ 
 
 
@@ -99,7 +99,7 @@
 <p>That is what we observed: increasing the prescribed constraint radius is accompanied by a decrease in the learned norm of <img src="https://latex.codecogs.com/png.latex?%5Cgamma">. The figure below illustrates this relationship.</p>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="https://shiqianma.github.io/blog/posts/manifold-muon/images/rmsnorm-radius.png" class="img-fluid figure-img" style="width:75.0%" alt="Plot of the norm of the learned RMSNorm scale vector during training for several radius settings. Larger radii correspond to smaller learned scale-vector norms."></p>
+<p><img src="https://shiqianma.github.io/blog/manifold-muon/images/rmsnorm-radius.png" class="img-fluid figure-img" style="width:75.0%" alt="Plot of the norm of the learned RMSNorm scale vector during training for several radius settings. Larger radii correspond to smaller learned scale-vector norms."></p>
 <figcaption>Larger constraint radius <img src="https://latex.codecogs.com/png.latex?R"> results in smaller learned RMSNorm scale-vector <img src="https://latex.codecogs.com/png.latex?%5Cgamma">. Solid and dashed curves distinguish the two constraint geometries.</figcaption>
 </figure>
 </div>
@@ -451,7 +451,7 @@ font-style: inherit;">url</span>           = {https://arxiv.org/abs/2605.04418}<
   <category>Optimization</category>
   <category>Large Language Models</category>
   <category>Research Notes</category>
-  <guid>https://shiqianma.github.io/blog/posts/manifold-muon/</guid>
+  <guid>https://shiqianma.github.io/blog/manifold-muon/</guid>
   <pubDate>Sun, 18 Oct 2026 04:00:00 GMT</pubDate>
 </item>
 </channel>

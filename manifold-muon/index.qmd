@@ -9,6 +9,8 @@ draft: false
 toc: true
 toc-depth: 2
 number-sections: false
+aliases:
+  - /posts/manifold-muon/index.html
 ---
 
 LLM training is essentially a nonconvex minimization problem. In classical optimization, we do line search to make sure gradient descent method converges. In LLM training, line search is prohibitive. Therefore, there is no way to guarantee the convergence. For this reason, researchers have developed many heuristics to stabilize the training dynamics in the hope that the training will not diverge. These heuristics include normalization layers, weight decay, gradient clipping, and careful learning-rate schedules (e.g., warmup).

@@ -7,92 +7,92 @@
     "text": "I am Shiqian Ma, a professor in the Data Science and AI Institute, Department of Applied Mathematics and Statistics, Department of Computer Science, and Department of Electrical and Computer Engineering, at Johns Hopkins University.\nMy research focuses on mathematical foundations of AI, foundation models, AI4Math, optimization and machine learning.\nIn this blog, I share research notes, explanations of mathematical ideas, and thoughts on optimization, machine learning, and AI for mathematical discovery.\nVisit my academic homepage"
   },
   {
-    "objectID": "posts/manifold-muon/index.html",
-    "href": "posts/manifold-muon/index.html",
+    "objectID": "manifold-muon/index.html",
+    "href": "manifold-muon/index.html",
     "title": "Manifold Muon: Normalize the Momentum and Weights",
     "section": "",
     "text": "LLM training is essentially a nonconvex minimization problem. In classical optimization, we do line search to make sure gradient descent method converges. In LLM training, line search is prohibitive. Therefore, there is no way to guarantee the convergence. For this reason, researchers have developed many heuristics to stabilize the training dynamics in the hope that the training will not diverge. These heuristics include normalization layers, weight decay, gradient clipping, and careful learning-rate schedules (e.g., warmup).\nMuon achieves this goal by normalizing the momentum so that the update is always controlled. More specifically, Muon updates the weight matrix \\(W\\) by \\[\nW_{t+1} = W_t - \\eta_t \\operatorname{msign}(M_t),\n\\] where \\(M_t\\) is the momentum and \\(\\operatorname{msign}\\) is the matrix sign operator, which normalizes all singular values of the momentum to 1.\nThe success of Muon suggests that normalizing the update is a good way to stabilize the training. This motivates to ask a natural question: what if we also normalize the weights?\nThat is the starting point of our paper, Demystifying Manifold Constraints in LLM Pre-training. We study what happens when LLM training explicitly constrains weight matrices to manifolds. Our algorithm, MACRO, essentially a Riemannian spectral gradient descent method, solves the manifold-constrained LLM training with rigorous convergence guarantees."
   },
   {
-    "objectID": "posts/manifold-muon/index.html#muon-normalizing-the-momentum",
-    "href": "posts/manifold-muon/index.html#muon-normalizing-the-momentum",
+    "objectID": "manifold-muon/index.html#muon-normalizing-the-momentum",
+    "href": "manifold-muon/index.html#muon-normalizing-the-momentum",
     "title": "Manifold Muon: Normalize the Momentum and Weights",
     "section": "Muon: normalizing the momentum",
     "text": "Muon: normalizing the momentum\nA neural-network linear layer maps an input vector \\(x\\) to \\(Wx\\), with\n\\[\nW\\in\\mathbb R^{d_{\\mathrm{out}}\\times d_{\\mathrm{in}}}.\n\\]\nTreating the weights as a matrix leads to matrix-aware optimizers, including Shampoo, SOAP, ASGO, and Muon.\nIn a simplified form of Muon, the stochastic gradient and momentum are\n\\[\nG_t=\\nabla_W\\ell(W_t,\\xi_t),\n\\qquad\nM_t=\\beta M_{t-1}+(1-\\beta)G_t.\n\\]\nRather than using \\(M_t\\) directly, Muon updates the weights using the matrix sign of \\(M_t\\):\n\\[\nO_t=\\operatorname{msign}(M_t),\n\\qquad\nW_{t+1}=W_t-\\eta_t O_t.\n\\]"
   },
   {
-    "objectID": "posts/manifold-muon/index.html#manifold-muon-normalizing-the-momentum-and-the-weights",
-    "href": "posts/manifold-muon/index.html#manifold-muon-normalizing-the-momentum-and-the-weights",
+    "objectID": "manifold-muon/index.html#manifold-muon-normalizing-the-momentum-and-the-weights",
+    "href": "manifold-muon/index.html#manifold-muon-normalizing-the-momentum-and-the-weights",
     "title": "Manifold Muon: Normalize the Momentum and Weights",
     "section": "Manifold Muon: normalizing the momentum and the weights",
     "text": "Manifold Muon: normalizing the momentum and the weights\nEarly contributors of Manifold Muon are Jeremy Bernstein 1, Jianlin Su 2, and Franz Louis Cesista 3. It suggests normalizing the weights in addition to the momentum. Since weights are the decision variables of the optimization problem, normalizing them requires imposing constraints on them. This changes the original unconstrained optimization problem into a constrained one, in fact, a Riemannian optimization problem:\n\\[\n\\min_{W\\in\\mathcal M}\\mathcal L(W),\n\\] where \\(\\mathcal M\\) is a manifold.\nThere are two questions: which manifold to use and how to solve the manifold-constrained optimization problem?\nOur MACRO algorithm, a Riemannian spectral gradient descent method (Riemannian Muon), provides an algorithmic framework for solving this problem. The main updates of MACRO are: \\[\n\\begin{aligned}\nG_t &= \\nabla_W\\ell(W_t,\\xi_t),\\\\\nM_t &= \\beta M_{t-1}+(1-\\beta)G_t,\\\\\n\\Phi_t &= \\operatorname{proj}_{T_{W_t}\\mathcal M}(M_t),\\\\\nO_t &= \\operatorname{msign}(\\Phi_t),\\\\\nD_t &= R\\,\\frac{O_t}{\\|O_t\\|_{\\mathcal M}+\\epsilon},\\\\\nW_{t+1} &= \\mathcal P_{\\mathcal M}(W_t-\\eta_tD_t).\n\\end{aligned}\n\\] Here \\(\\operatorname{proj}_{T_{W_t}\\mathcal M}\\) is the projection onto the tangent space, and \\(\\mathcal P_{\\mathcal M}\\) serves the purpose of retraction. They are standard operations in Riemannian optimization. MACRO has the following convergence rate guarantee under standard assumptions: \\[\n\\min_{t=0,\\ldots,T-1}\\mathbb{E}\\|\\nabla_\\mathcal{M}\\mathcal{L}(W_t)\\|_* \\leq \\mathcal{O}(T^{-1/4}),\n\\] which matches the rate for general nonconvex smooth stochastic optimization.\nSince Muon essentially projects the momentum on to Stiefel manifold, one would think that it is natural to impose Stiefel manifold to the weights. However, manifold Muon with Stiefel manifold doesn’t scale well. Two natural alternatives are Frobenius norm sphere and Spectral norm sphere (although technically spectral norm sphere is not a manifold):\n\\[\n\\mathcal M_F(R)=\\{W:\\|W\\|_F=R\\}, \\quad \\mathcal M_S(R)=\\{W:\\|W\\|_2=R\\}.\n\\]\nExisting works such as Spectral Sphere Optimization (SSO) 4 uses spectral sphere, while MuonH 5 adopts Frobenius sphere."
   },
   {
-    "objectID": "posts/manifold-muon/index.html#spectral-and-frobenius-constraints-need-different-radii",
-    "href": "posts/manifold-muon/index.html#spectral-and-frobenius-constraints-need-different-radii",
+    "objectID": "manifold-muon/index.html#spectral-and-frobenius-constraints-need-different-radii",
+    "href": "manifold-muon/index.html#spectral-and-frobenius-constraints-need-different-radii",
     "title": "Manifold Muon: Normalize the Momentum and Weights",
     "section": "Spectral and Frobenius constraints need different radii",
     "text": "Spectral and Frobenius constraints need different radii\nChoosing the norm is only half the specification. What radius should we use?\nConsider a sequence of \\(s\\) input vectors collected in \\(X\\in\\mathbb R^{s\\times d_{\\mathrm{in}}}\\), with\n\\[\nY=XW^\\top.\n\\]\nDefine the input and output root-mean-square scales by\n\\[\n\\operatorname{RMS}(X)=\\frac{\\|X\\|_F}{\\sqrt{s\\,d_{\\mathrm{in}}}},\n\\qquad\n\\operatorname{RMS}(Y)=\\frac{\\|Y\\|_F}{\\sqrt{s\\,d_{\\mathrm{out}}}}.\n\\]\nWe want to choose a radius such that the RMS norm is preserved from \\(X\\) to \\(Y\\).\n\nSpectral sphere controls the worst-case scale\nThe operator-norm bound gives\n\\[\n\\operatorname{RMS}(Y)\n\\leq\n\\sqrt{\\frac{d_{\\mathrm{in}}}{d_{\\mathrm{out}}}}\n\\|W\\|_2\\operatorname{RMS}(X).\n\\]\nThus, with\n\\[\nR_{\\mathrm{spec}}=r\\sqrt{\\frac{d_{\\mathrm{out}}}{d_{\\mathrm{in}}}},\n\\]\nwe obtain \\(\\operatorname{RMS}(Y)\\leq r\\operatorname{RMS}(X)\\). This bound holds for arbitrary input directions: it controls the largest possible amplification.\n\n\nFrobenius sphere controls an average-case scale\nUsing the Frobenius norm in that same worst-case inequality gives a much looser bound. A better way is to examine an isotropic-input calculation at initialization. For a fixed layer weight and input vectors satisfying \\(\\mathbb E[x_i x_i^\\top]=\\sigma_x^2I\\), a direct expansion gives\n\\[\n\\mathbb E\\|XW^\\top\\|_F^2\n=s\\sigma_x^2\\|W\\|_F^2.\n\\]\nConsequently,\n\\[\n\\left(\\mathbb E[\\operatorname{RMS}(Y)^2]\\right)^{1/2}\n=\n\\frac{\\sigma_x}{\\sqrt{d_{\\mathrm{out}}}}\\|W\\|_F.\n\\]\nThis motivates\n\\[\nR_{\\mathrm{fro}}=r\\sqrt{d_{\\mathrm{out}}}.\n\\]\nThe practical choices are therefore\n\n\n\nConstraint\nRadius\n\n\n\n\nSpectral sphere\n\\(r\\sqrt{d_{\\mathrm{out}}/d_{\\mathrm{in}}}\\)\n\n\nFrobenius sphere\n\\(r\\sqrt{d_{\\mathrm{out}}}\\)\n\n\n\nThe multiplier \\(r\\) is a tunable scalar. Our numerical experiments show that MACRO is not sensitive to the choice of \\(r\\)."
   },
   {
-    "objectID": "posts/manifold-muon/index.html#manifold-constraint-functionally-overlaps-with-rmsnorm",
-    "href": "posts/manifold-muon/index.html#manifold-constraint-functionally-overlaps-with-rmsnorm",
+    "objectID": "manifold-muon/index.html#manifold-constraint-functionally-overlaps-with-rmsnorm",
+    "href": "manifold-muon/index.html#manifold-constraint-functionally-overlaps-with-rmsnorm",
     "title": "Manifold Muon: Normalize the Momentum and Weights",
     "section": "Manifold constraint functionally overlaps with RMSNorm",
     "text": "Manifold constraint functionally overlaps with RMSNorm\nNormalization layers already control activation scale. For example, RMSNorm takes the form\n\\[\n\\operatorname{RMSNorm}_{\\gamma}(x)\n=\n\\gamma\\odot\\frac{x}{\\operatorname{RMS}(x)},\n\\]\nwhere \\(\\gamma\\) is a learned scale vector. The manifold constraints also have regulation effects on activation scale through the control of weights norm. The two mechanisms may have some functional overlap.\nThat is what we observed: increasing the prescribed constraint radius is accompanied by a decrease in the learned norm of \\(\\gamma\\). The figure below illustrates this relationship.\n\n\n\nLarger constraint radius \\(R\\) results in smaller learned RMSNorm scale-vector \\(\\gamma\\). Solid and dashed curves distinguish the two constraint geometries.\n\n\nThis suggests functional overlap. In the standard architecture, learnable normalization can buffer changes in weight scale.\nWe also ask what happens after removing standard learnable pre-RMSNorm layers. This experiment retains targeted parameter-free normalizations after embedding and attention, QK normalization, and Norm-Gated SwiGLU. For a 330M QWen-like model, our results are:\n\n\n\n\n\n\n\n\nOptimizer\nValidation loss at LR \\(0.01\\)\nValidation loss at LR \\(0.03\\)\n\n\n\n\nMuon\n2.813\nNaN\n\n\nMACRO-fro\n2.758\n2.781\n\n\nMACRO-spec\n2.739\n2.819\n\n\n\nBoth MACRO variants remain stable at the largest tested learning rate, while Muon fails when LR=\\(0.03\\). The conclusion is: explicit manifold constraints can take over part of the stabilization role of learnable normalization, within this particular architecture."
   },
   {
-    "objectID": "posts/manifold-muon/index.html#weight-decay-is-not-needed-in-manifold-muon",
-    "href": "posts/manifold-muon/index.html#weight-decay-is-not-needed-in-manifold-muon",
+    "objectID": "manifold-muon/index.html#weight-decay-is-not-needed-in-manifold-muon",
+    "href": "manifold-muon/index.html#weight-decay-is-not-needed-in-manifold-muon",
     "title": "Manifold Muon: Normalize the Momentum and Weights",
     "section": "Weight decay is not needed in manifold Muon",
     "text": "Weight decay is not needed in manifold Muon\n\nWhat weight decay is doing geometrically\nConsider the decoupled weight-decay update\n\\[\nW_{t+1}=(1-\\eta_t\\lambda)W_t-\\eta_tD_t.\n\\]\nWhen decay-induced shrinkage offsets the norm growth caused by optimization updates, the weight norm can settle around an approximately stable level. Learning continues, but the motion increasingly resembles a rotation: the direction of the weights changes while their overall size remains approximately constant. This is the so-called rotational equilibrium.\nHowever, to achieve this effect, the optimizer must evolve toward an equilibrium, potentially through a long transient in which weight norms and angular updates are still changing. Choosing a decay coefficient does not prescribe the weight norm or the rotation angle at every iteration.\nRather than waiting for this balance to emerge, can we impose the desired geometry from the first step?\n\n\nMACRO fixes the scale directly\nThe Frobenius sphere gives the clearest illustration. MACRO-fro enforces\n\\[\n\\|W_t\\|_F=R\n\\]\nthroughout training. Let \\(O_t\\) be MACRO’s matrix-sign direction, computed from the tangent-projected momentum. Omitting the numerical stabilizer and assuming a nonzero direction, its normalized step is\n\\[\n\\begin{aligned}\n\\widetilde{\\nabla}_t&=R\\frac{O_t}{\\|O_t\\|_F},\\\\\nZ_t&=W_t-\\eta_t\\widetilde{\\nabla}_t,\\\\\nW_{t+1}&=R\\frac{Z_t}{\\|Z_t\\|_F}.\n\\end{aligned}\n\\]\nBoth the weight and the normalized direction have Frobenius norm \\(R\\). Therefore,\n\\[\n\\boxed{\n\\frac{\\|\\eta_t\\widetilde{\\nabla}_t\\|_F}{\\|W_t\\|_F}\n=\\eta_t.\n}\n\\]\nThe learning-rate schedule now directly controls the proposed update-to-weight ratio, without depending on a weight norm that drifts during training.\nThere is no need for an additional shrinkage term to maintain the prescribed weight scale: the normalization already does that at every iteration.\n\n\nFrom fixed weight norms to controlled rotation\nBecause consecutive weights have the same Frobenius norm, their movement can be described by the angle\n\\[\n\\theta_t=\n\\arccos\\!\\left(\n\\frac{\\langle W_{t+1},W_t\\rangle_F}{R^2}\n\\right).\n\\]\nHere we regard each weight matrix as a vector of its entries. This is a global angle between two matrices, not a claim that every singular direction rotates by the same amount.\nOur analysis makes this angle explicit. Define\n\\[\n\\alpha_t=\n\\frac{\\langle W_t,O_t\\rangle_F}\n{R\\|O_t\\|_F}.\n\\]\nThe normalized update gives the exact identity\n\\[\n\\boxed{\n\\cos\\theta_t=\n\\frac{1-\\eta_t\\alpha_t}\n{\\sqrt{1-2\\eta_t\\alpha_t+\\eta_t^2}}.\n}\n\\]\nFor small steps,\n\\[\n\\theta_t\\approx\\eta_t\\sqrt{1-\\alpha_t^2}.\n\\]\nWhen the update direction is nearly tangent, \\(\\alpha_t\\approx0\\), this becomes \\(\\theta_t\\approx\\eta_t\\).\n\n\nDo we still need weight decay in practice?\nWe test this directly on a 330M Qwen3-like model, comparing weight-decay coefficients \\(\\lambda=0\\) and \\(\\lambda=0.1\\) while keeping the other settings fixed at each learning rate.\n\n\n\nOptimizer\nWeight decay\nLR 0.007\nLR 0.01\nLR 0.03\n\n\n\n\nMACRO-fro\n0\n2.742\n2.730\n2.718\n\n\nMACRO-fro\n0.1\n2.742\n2.729\n2.718\n\n\nMACRO-spec\n0\n2.728\n2.715\n2.783\n\n\nMACRO-spec\n0.1\n2.727\n2.715\n2.783\n\n\n\nValidation loss; lower is better. These are the separate 330M weight-decay ablation results.\nThe differences are at most 0.001. So, adding weight decay provides essentially no additional benefit."
   },
   {
-    "objectID": "posts/manifold-muon/index.html#low-precision-training",
-    "href": "posts/manifold-muon/index.html#low-precision-training",
+    "objectID": "manifold-muon/index.html#low-precision-training",
+    "href": "manifold-muon/index.html#low-precision-training",
     "title": "Manifold Muon: Normalize the Momentum and Weights",
     "section": "Low-precision training",
     "text": "Low-precision training\nThe following table reports final validation perplexities:\n\n\n\nModel\nOptimizer\nFP32 configuration\nBF16 configuration\n\n\n\n\n240M\nMuon\n20.593\n64.845\n\n\n240M\nMACRO-fro\n20.494\n20.748\n\n\n240M\nMACRO-spec\n20.732\n21.324\n\n\n600M\nMuon\n15.349\n39.269\n\n\n600M\nMACRO-fro\n15.296\n15.665\n\n\n600M\nMACRO-spec\n15.310\n16.056\n\n\n\nThe contrast is substantial: MACRO incurs far less degradation in these reduced-precision settings."
   },
   {
-    "objectID": "posts/manifold-muon/index.html#what-happens-in-standard-pretraining",
-    "href": "posts/manifold-muon/index.html#what-happens-in-standard-pretraining",
+    "objectID": "manifold-muon/index.html#what-happens-in-standard-pretraining",
+    "href": "manifold-muon/index.html#what-happens-in-standard-pretraining",
     "title": "Manifold Muon: Normalize the Momentum and Weights",
     "section": "What happens in standard pretraining?",
     "text": "What happens in standard pretraining?\nThe main experiments use Qwen3-like decoder-only Transformers, with grouped-query attention, rotary position embeddings, SwiGLU, and pre-RMSNorm. “Qwen3-like” describes the architecture. These models are trained from scratch.\nThe sequence length is 2,048, and the global batch size is 512. The validation-perplexity is reported in the table below.\n\n\n\nOptimizer\n240M\n600M\n1.2B\n\n\n\n\nMuon\n\\(20.72\\pm0.010\\)\n\\(15.37\\pm0.006\\)\n\\(12.99\\pm0.004\\)\n\n\nMuonH-fro\n\\(20.55\\pm0.007\\)\n\\(15.23\\pm0.006\\)\n\\(12.92\\pm0.005\\)\n\n\nMuonH-spec\n\\(20.63\\pm0.014\\)\n\\(15.33\\pm0.006\\)\n\\(12.88\\pm0.006\\)\n\n\nSSO\n\\(20.59\\pm0.021\\)\n\\(15.32\\pm0.007\\)\n—\n\n\nMACRO-fro\n\\(20.58\\pm0.011\\)\n\\(15.29\\pm0.002\\)\n\\(12.85\\pm0.006\\)\n\n\nMACRO-spec\n\\(20.50\\pm0.011\\)\n\\(15.30\\pm0.005\\)\n\\(12.90\\pm0.009\\)\n\n\n\nBoth MACRO variants improve on the reported Muon baseline at each scale. The differences between spectral and Frobenius constraints are modest, and MACRO is competitive with MuonH."
   },
   {
-    "objectID": "posts/manifold-muon/index.html#we-no-longer-need-learning-rate-warmup",
-    "href": "posts/manifold-muon/index.html#we-no-longer-need-learning-rate-warmup",
+    "objectID": "manifold-muon/index.html#we-no-longer-need-learning-rate-warmup",
+    "href": "manifold-muon/index.html#we-no-longer-need-learning-rate-warmup",
     "title": "Manifold Muon: Normalize the Momentum and Weights",
     "section": "We no longer need learning-rate warmup",
     "text": "We no longer need learning-rate warmup\nLearning-rate warmup starts training with a small learning rate and gradually increases it to the target level. Results in the following table show that the learning rate warmup is no longer needed when we use MACRO.\n240M model\n\n\n\nWarmup ratio\nMuon\nMACRO-fro\nMACRO-spec\n\n\n\n\n0%\n20.868\n20.543\n20.559\n\n\n5%\n20.650\n20.560\n20.632\n\n\n10%\n20.679\n20.604\n20.700\n\n\n15%\n20.712\n20.674\n20.752\n\n\n\n600M model\n\n\n\nWarmup ratio\nMuon\nMACRO-fro\nMACRO-spec\n\n\n\n\n0%\n15.312\n15.227\n15.216\n\n\n5%\n15.309\n15.252\n15.253\n\n\n15%\n15.402\n15.340\n15.354\n\n\n\nBoth MACRO variants perform best without warmup at both model sizes. Muon achieves its best performance when 5% training steps are used for learning rate warmup."
   },
   {
-    "objectID": "posts/manifold-muon/index.html#conclusion",
-    "href": "posts/manifold-muon/index.html#conclusion",
+    "objectID": "manifold-muon/index.html#conclusion",
+    "href": "manifold-muon/index.html#conclusion",
     "title": "Manifold Muon: Normalize the Momentum and Weights",
     "section": "Conclusion",
     "text": "Conclusion\nManifold constraints help improve significantly the training stability. When using manifold constraints, weight decay is no longer needed, so one less hypterparameter to tune in practice. Moreover, learning rate warmup is not needed either. Our manifold Muon algorithm, MACRO, is very robust to low-precision training."
   },
   {
-    "objectID": "posts/manifold-muon/index.html#paper-and-codes",
-    "href": "posts/manifold-muon/index.html#paper-and-codes",
+    "objectID": "manifold-muon/index.html#paper-and-codes",
+    "href": "manifold-muon/index.html#paper-and-codes",
     "title": "Manifold Muon: Normalize the Momentum and Weights",
     "section": "Paper and codes",
     "text": "Paper and codes\nKang An, Jiaxiang Li, Donald Goldfarb, and Shiqian Ma. Demystifying Manifold Constraints in LLM Pre-training. arXiv:2605.04418, 2026. Paper.\nOur codes are available at titanprecond."
   },
   {
-    "objectID": "posts/manifold-muon/index.html#cite-this-paper",
-    "href": "posts/manifold-muon/index.html#cite-this-paper",
+    "objectID": "manifold-muon/index.html#cite-this-paper",
+    "href": "manifold-muon/index.html#cite-this-paper",
     "title": "Manifold Muon: Normalize the Momentum and Weights",
     "section": "Cite this paper",
     "text": "Cite this paper\nTo cite this work, please use the following BibTeX entry:\n@misc{an2026demystifying,\n  title         = {Demystifying Manifold Constraints in {LLM} Pre-training},\n  author        = {An, Kang and Li, Jiaxiang and Goldfarb, Donald and Ma, Shiqian},\n  year          = {2026},\n  archivePrefix = {arXiv},\n  url           = {https://arxiv.org/abs/2605.04418}\n}"
   },
   {
-    "objectID": "posts/manifold-muon/index.html#footnotes",
-    "href": "posts/manifold-muon/index.html#footnotes",
+    "objectID": "manifold-muon/index.html#footnotes",
+    "href": "manifold-muon/index.html#footnotes",
     "title": "Manifold Muon: Normalize the Momentum and Weights",
     "section": "Footnotes",
     "text": "Footnotes\n\n\nJeremy Berstein’s blog↩︎\nJianlin Su’s blog↩︎\nFranz Louis Cesista’s blog↩︎\nSSO↩︎\nMuonH↩︎"
