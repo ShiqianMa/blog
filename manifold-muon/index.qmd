@@ -3,7 +3,7 @@ title: "Manifold Muon: Normalize the Momentum and Weights"
 # subtitle: "From Muon to MACRO: It's all about stabilization."
 author: "Shiqian Ma"
 date: "2026-10-18"
-categories: [Optimization, Large Language Models, Research Notes]
+categories: [Optimization, Large Language Models]
 description: "It significantly improves the training stability, makes weight decay unnecessary, doesn't need learning rate warmup, and is robust to low-precision training."
 draft: false
 toc: true

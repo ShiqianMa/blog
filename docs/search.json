@@ -102,6 +102,6 @@
     "href": "index.html",
     "title": "Shiqian Ma's Blog",
     "section": "",
-    "text": "Manifold Muon: Normalize the Momentum and Weights\n\n\n\nOptimization\n\nLarge Language Models\n\nResearch Notes\n\n\n\nIt significantly improves the training stability, makes weight decay unnecessary, doesn’t need learning rate warmup, and is robust to low-precision training.\n\n\n\n\n\nOct 18, 2026\n\n\nShiqian Ma\n\n\n\n\n\nNo matching items"
+    "text": "Manifold Muon: Normalize the Momentum and Weights\n\n\n\nOptimization\n\nLarge Language Models\n\n\n\nIt significantly improves the training stability, makes weight decay unnecessary, doesn’t need learning rate warmup, and is robust to low-precision training.\n\n\n\n\n\nOct 18, 2026\n\n\nShiqian Ma\n\n\n\n\n\nNo matching items"
   }
 ]
